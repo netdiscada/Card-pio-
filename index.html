@@ -79,6 +79,18 @@
                 <!-- O cardápio será inserido aqui pelo JavaScript -->
             </div>
         </div>
+
+        <!-- Seção de Aviso Inteligente (ALTERADO) -->
+        <div id="guidanceSection" class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded-md mb-6 fade-in">
+             <div class="flex">
+                <div class="py-1">
+                    <svg class="fill-current h-6 w-6 text-yellow-500 mr-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M10 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16zm-1-5.05V7h2v5.95h-2zM9 14v-2h2v2H9z"/></svg>
+                </div>
+                <div>
+                    <p id="guidanceText" class="font-semibold">Preencha seu nome e escolha um prato para cada dia da semana.</p>
+                </div>
+            </div>
+        </div>
         
         <!-- 3. Área para exibir o resumo e enviar -->
         <div id="summarySection" class="hidden bg-white rounded-xl shadow-sm p-6 fade-in">
@@ -129,7 +141,6 @@
             menuDaSemana.forEach(item => {
                 const dayId = item.day.replace(/[^a-zA-Z]/g, "").toLowerCase();
                 
-                // Opções disponíveis para seleção naquele dia
                 const allOptions = [
                     { ...item.pratoPrincipal, type: 'Prato Principal' },
                     ...(item.opcao ? [{ ...item.opcao, type: 'Opção do Dia' }] : []),
@@ -165,30 +176,56 @@
             });
         }
 
-        // --- Função que atualiza o resumo do pedido em tempo real ---
+        // --- Função que atualiza o resumo e os avisos em tempo real ---
         function updateSummaryAndVisibility() {
             const employeeName = document.getElementById('employeeName').value.trim();
+            const guidanceSection = document.getElementById('guidanceSection');
+            const guidanceText = document.getElementById('guidanceText');
             const summarySection = document.getElementById('summarySection');
             const summaryText = document.getElementById('summaryText');
 
-            let summary = `*Pedido de Refeição - ${employeeName}* 🍽️\n\n`;
-            let hasSelection = false;
-
+            // Validação
+            const isNameFilled = employeeName !== '';
+            const missingDays = [];
             menuDaSemana.forEach(item => {
                 const dayId = item.day.replace(/[^a-zA-Z]/g, "").toLowerCase();
-                const selectedOption = document.querySelector(`input[name="${dayId}"]:checked`);
-                if (selectedOption) {
-                    hasSelection = true;
-                    summary += `*${item.day}:*\n- ${selectedOption.value} (Guarnição: ${item.guarnicao.name})\n\n`;
+                if (!document.querySelector(`input[name="${dayId}"]:checked`)) {
+                    missingDays.push(item.day);
                 }
             });
+            const allDaysSelected = missingDays.length === 0;
 
-            if (employeeName && hasSelection) {
+            // Lógica de exibição
+            if (isNameFilled && allDaysSelected) {
+                // SUCESSO: Tudo preenchido
+                guidanceSection.classList.add('hidden');
+                summarySection.classList.remove('hidden');
+
+                let summary = `*Pedido de Refeição - ${employeeName}* 🍽️\n\n`;
+                menuDaSemana.forEach(item => {
+                    const dayId = item.day.replace(/[^a-zA-Z]/g, "").toLowerCase();
+                    const selectedOption = document.querySelector(`input[name="${dayId}"]:checked`);
+                    summary += `*${item.day}:*\n- ${selectedOption.value} (Guarnição: ${item.guarnicao.name})\n\n`;
+                });
                 summary += `_Enviado em ${new Date().toLocaleDateString('pt-BR')}_`;
                 summaryText.value = summary;
-                summarySection.classList.remove('hidden');
+
             } else {
+                // ERRO: Algo está faltando
                 summarySection.classList.add('hidden');
+                guidanceSection.classList.remove('hidden');
+                
+                let message = '';
+                if (!isNameFilled) {
+                    message = 'Por favor, preencha seu nome. ';
+                }
+                if (!allDaysSelected) {
+                    if (isNameFilled) {
+                         message = `Olá, ${employeeName}! `;
+                    }
+                    message += `Falta selecionar o(s) prato(s) para o(s) seguinte(s) dia(s): ${missingDays.join(', ')}.`;
+                }
+                guidanceText.textContent = message;
             }
         }
         
@@ -228,6 +265,8 @@
         // --- Inicia tudo quando a página carrega ---
         window.onload = () => {
             createMenu();
+            updateSummaryAndVisibility(); 
+
             const employeeNameInput = document.getElementById('employeeName');
             const menuContainer = document.getElementById('menu');
 
